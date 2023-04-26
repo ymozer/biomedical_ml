@@ -1,0 +1,16 @@
+Dataset: https://blogs.kingston.ac.uk/retinal/
+
+https://github.com/sfikas/medical-imaging-datasets
+https://github.com/SHI-Labs/SGL-Retinal-Vessel-Segmentation
+https://github.com/SharifAmit/RFRL-Net
+https://paperswithcode.com/sota/retinal-vessel-segmentation-on-drive?p=study-group-learning-improving-retinal-vessel
+
+
+ Find a medical image segmentation dataset.
+2- Use small size of the dataset [10 images]
+
+3- Use feature extraction filters (LBP, GLCM, GFB, canny, sobel, .....) to create ML model. 
+4- Train and test it with random forest, adaboost, ANN and xgboost
+5- Save best performed model.
+6- Show input and output images
+7- Test model with a new image (un-trained)
