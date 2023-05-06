@@ -2,6 +2,9 @@
 /Include
 /Lib
 /Scripts
+/bin
+/lib
+/xgboost
 *.npz
 *.cfg
 /share
