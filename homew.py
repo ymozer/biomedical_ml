@@ -1,3 +1,4 @@
+#%%
 import os
 import cv2
 import pickle
@@ -30,11 +31,11 @@ ml_algo={
 def plot(img,label):
     fig = plt.figure()
     sub=fig.add_subplot(111)
-    fig.suptitle(label,figsize=(10, 10), fontsize=14, fontweight='bold')
+    fig.suptitle(label, fontsize=14, fontweight='bold')
     if img.ndim == 2:
         sub.imshow(img, cmap =plt.cm.gray)
     elif img.ndim ==3:
-        sub.imshow(img, cmap = 'jet')
+        sub.imshow(img, cmap = 'jet')    
     plt.show()
     plt.savefig("ali")
 #%%
@@ -45,7 +46,7 @@ for i in range(9):
             lr='L'
         elif j==1:
             lr='R'
-    img_bgr = cv2.imread(f'CHASEDB1/Image_0{i+1}{lr}.jpg')
+    img_bgr = cv2.imread(f'Dataset/CHASEDB1/Image_0{i+1}{lr}.jpg')
     plot(img_bgr,f"bgr-{i}")
     img_rgb= cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
     plot(img_rgb,f'rgb-{i}')
@@ -133,7 +134,7 @@ for i in range(9):
     df['Variance s3'] = variance_img1  
     plot(variance_img, "Variance")
     
-    labeled_img = cv2.imread(f'CHASEDB1/Image_0{j+1}{lr}_1stHO.png')
+    labeled_img = cv2.imread(f'Dataset/CHASEDB1/Image_0{j+1}{lr}_1stHO.png')
     labeled_img = cv2.cvtColor(labeled_img, cv2.COLOR_BGR2GRAY)
     labeled_img1 = labeled_img.reshape(-1)
     
@@ -183,7 +184,7 @@ for i in range(9):
             print(f"{ml_algo[k+1]}--RMSE:{rmse}")
             print(f"{ml_algo[k+1]}--R^2:{r2}")
 
-#%% FEATURE SELECTİON USİNG MDI
+#%% FEATURE SELECTİON USİNG MDI -- METHOD I
         # First way to assaign importance MDI
         feature_list = list(X.columns)
         mdi_imp = pd.Series(model.feature_importances_,index=feature_list).sort_values(ascending=False)
@@ -195,11 +196,8 @@ for i in range(9):
         ax = mdi_imp[0:5].plot.barh()
         ax.set_title("Random Forest Feature Importances (MDI)")
         ax.figure.tight_layout()
-#%% RETRAİN MODEL BASED ON SELECTED 5 FEATURES
-        model_selected_five = RandomForestClassifier(n_estimators = 100, random_state = 42,n_jobs=5)
-        model_selected_five.fit(X_train[first_five].copy(), y_train)
 
-#%% Feature Selection using PERMUTATİON IMPORTANCE
+#%% Feature Selection using PERMUTATİON IMPORTANCE -- METHOD II
         from sklearn.feature_selection import SelectFromModel
         '''
         Research RFE (Recursive Feature Extraction)
@@ -209,23 +207,7 @@ for i in range(9):
         header_list = df.columns.tolist()
 
         r_multi = permutation_importance(model, X_test, y_test, n_repeats=2, n_jobs=3, random_state=0, scoring=scoring)
-        features=pd.DataFrame({
-            "feature_name": X.columns.tolist(),
-            "Importance": r_multi['r2'].importances_mean
-            }).sort_values(by="Importance")
-        sfm = SelectFromModel(model, threshold=-np.inf,max_features=5).fit(X,Y)
-        indices=[]
-        coun=0
-        for i in sfm.get_support():
-            if i:
-                indices.append(coun)
-            coun+=1
-        result = [list(features)[i] for i in indices]
-        header_list = df.columns.tolist()
 
-        print(f"Features selected by SelectFromModel: {result}")
-
-        
         count=0
         for metric in r_multi:
             print(f"{metric}")
@@ -244,6 +226,19 @@ for i in range(9):
             fig.tight_layout()
             plt.show()
             count+=1
+#%%     SelectFromModel -- METHOD III
+        sfm = SelectFromModel(model, threshold=-np.inf,max_features=5).fit(X,Y)
+        
+        selected=[]
+        for i in sfm.get_support(indices=True):
+            selected.append(list(sfm.feature_names_in_)[i])
+        print(f"Features selected by SelectFromModel: {selected}")
+
+#%% RETRAİN MODEL BASED ON SELECTED 5 FEATURES
+        model_selected_five = RandomForestClassifier(n_estimators = 100, random_state = 42,n_jobs=5)
+        model_selected_five.fit(X_train[first_five].copy(), y_train)
+
+
 #%% OUTPUT ESTİMATED IMAGES
         result = model.predict(X)
         result_selected = model_selected_five.predict(X)

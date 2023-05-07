@@ -7,4 +7,7 @@
 /xgboost
 *.npz
 *.cfg
+*.png
+*.sav
+*.spydata
 /share
