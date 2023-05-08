@@ -9,6 +9,7 @@
 *.npz
 *.cfg
 *.png
+*.jpg
 *.sav
 *.spydata
 /share
