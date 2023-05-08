@@ -1,4 +1,5 @@
 /__pycache__
+/bin
 /Include
 /Lib
 /Scripts
@@ -7,7 +8,11 @@
 /xgboost
 *.npz
 *.cfg
+<<<<<<< HEAD
+/share
+=======
 *.png
 *.sav
 *.spydata
 /share
+>>>>>>> 3bc19c15a689e1ed95379f03ff3b90d4f7f14d89
