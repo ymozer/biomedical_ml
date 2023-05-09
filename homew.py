@@ -317,7 +317,7 @@ sorted_dict = {k: v for k, v in sorted(dict_features.items(), key=lambda item: i
 last_5 = dict(list(sorted_dict.items())[-5:])
 print(list(last_5.keys()))
 perm_top=list(last_5.keys())
-X_perm=df.loc[:,df_list]
+X_perm=df.loc[:,perm_top]
 
 X_perm_train, X_perm_test, y_train, y_test = train_test_split(X_perm, Y, test_size=0.4, random_state=20)
 
@@ -450,14 +450,19 @@ for i in range(9):
         X = df.drop(labels = ["Labels"], axis=1) 
         
         result=model.predict(X)
+        X_perm=df.loc[:,perm_top]
         result_selected_perm=model_perm.predict(X_perm)
+        X_sfm=df.loc[:,selected]
         result_selected_sfm=model_sfm_rf.predict(X_sfm)
+        X_mdi=df.loc[:,df_list]
         result_selected_mdi=model_mdi.predict(X_mdi)
         
         segmented = result.reshape((img.shape))
         segmented_selected_perm = result_selected_perm.reshape((img.shape))
         segmented_selected_sfm = result_selected_sfm.reshape((img.shape))
         segmented_selected_mdi = result_selected_mdi.reshape((img.shape))
+        
+        print (f"{ml_algo[k+1]} Accuracy = { metrics.accuracy_score(Y, result)}")
         
         plot(segmented,f"{ml_algo[k+1]} estimated result")
         plot(segmented_selected_perm,f"{ml_algo[k+1]} selected 'Permutation' estimated result")
