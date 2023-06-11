@@ -114,25 +114,21 @@ for i in range(1,10):
         lbp_clone = lbp.reshape(-1)
         df['LBP'] = lbp_clone
         #plot(lbp,'lbp')
-
         
         edge_roberts = roberts(img)
         edge_roberts1 = edge_roberts.reshape(-1)
         df['Roberts'] = edge_roberts1
         #plot(edge_roberts,'Roberts')
         
-        
         edge_sobel = sobel(img)
         edge_sobel1 = edge_sobel.reshape(-1)
         df['Sobel'] = edge_sobel1
         #plot(edge_sobel, "Sobel")
         
-        
         edge_scharr = scharr(img)
         edge_scharr1 = edge_scharr.reshape(-1)
         df['Scharr'] = edge_scharr1
         #plot(edge_scharr, "Scharr")
-        
         
         edge_prewitt = prewitt(img)
         edge_prewitt1 = edge_prewitt.reshape(-1)
@@ -144,12 +140,10 @@ for i in range(1,10):
         df['Gaussian s3'] = gaussian_img1
         #plot(gaussian_img,"Gaussian 1")
         
-        
         gaussian_img2 = nd.gaussian_filter(img, sigma=7)
         gaussian_img3 = gaussian_img2.reshape(-1)
         df['Gaussian s7'] = gaussian_img3
         #plot(gaussian_img2,"Gaussian 2")
-        
         
         median_img = nd.median_filter(img, size=3)
         median_img1 = median_img.reshape(-1)
@@ -220,26 +214,6 @@ else:
     print("Loading model: "+filename)
     model = pickle.load(open(filename, 'rb'))
 
-#%% PREDICT
-#prediction_test_train = model.predict(X_train)
-#prediction_test = model.predict(X_test)
-#conf_matrix = confusion_matrix(y_true=y_test, y_pred=prediction_test)
-#fig, ax = plt.subplots(figsize=(7.5, 7.5))
-#ax.matshow(conf_matrix, cmap=plt.cm.Blues, alpha=0.3)
-#for l in range(conf_matrix.shape[0]):
-#    for f in range(conf_matrix.shape[1]):
-#        ax.text(x=l, y=f,s=conf_matrix[l, f], va='center', ha='center', size='xx-large')
-#    
-#plt.xlabel('Predictions', fontsize=18)
-#plt.ylabel('Actuals', fontsize=18)
-#plt.title(f'{ml_algo[k+1]}Confusion Matrix', fontsize=18)
-#plt.show()
-#
-#print (f"{ml_algo[k+1]} Accuracy on training data = {metrics.accuracy_score(y_train, prediction_test_train)}")
-#print (f"{ml_algo[k+1]} Accuracy = { accuracy_score(y_test, prediction_test)}")
-#print (f"{ml_algo[k+1]} F1 score = { f1_score(y_test, prediction_test,average=None)}")
-
-
 #%% FEATURE SELECTÄ°ON USÄ°NG MDI -- METHOD I
 # First way to assaign importance MDI
 feature_list = list(X.columns)
@@ -254,50 +228,10 @@ ax.set_title("Random Forest Feature Importances (MDI)")
 ax.figure.tight_layout()
 plt.show()
 
-#%% Feature Selection using PERMUTATÄ°ON IMPORTANCE -- METHOD II
-'''
-scoring = ['accuracy', 'roc_auc']
-header_list = df.columns.tolist()
-
-filename_permutation = f"Models/permutation_importance.sav"
-
-if not os.path.exists(filename_permutation):
-    print("file "+filename_permutation+" don't exists.")
-    r_multi = permutation_importance(model, X_test, y_test, n_repeats=2, n_jobs=-1, random_state=33, scoring=scoring)
-    print("Finished permutation_importance calculation.")
-    pickle.dump(r_multi, open(filename_permutation, 'wb'))
-
-else:
-    print("Loading model: "+filename_permutation)
-    r_multi = pickle.load(open(filename_permutation, 'rb'))
-
-count=0
-for metric in r_multi:
-    print(f"{metric}")
-    r = r_multi[metric]
-    sorted_importances_idx = r.importances_mean.argsort()
-    print(sorted_importances_idx)
-    importances = pd.DataFrame(
-        r.importances[sorted_importances_idx].T,
-        columns=X.columns[sorted_importances_idx],
-    )
-    fig, ax = plt.subplots(figsize=(10, 6))
-    importances.plot.box(vert=False, whis=10, ax=ax)
-    ax.set_title(f"{metric} Permutation Importances (test set)")
-    ax.set_xlabel("Decrease in accuracy score")
-    ax.axvline(x=0, color="k", linestyle="--")
-    fig.tight_layout()
-    plt.show()
-    count+=1
-'''
 #%%     SelectFromModel -- METHOD III
 from sklearn.feature_selection import SelectFromModel
-'''
-Research RFE (Recursive Feature Extraction)
-'''
 
 print('\n-------Retrain model based on selected 5 features from SelectFromModel()-------')
-
 model_sfm = SelectFromModel(model, threshold=-np.inf,max_features=5)
 filename_sfm = f"Models/{ml_algo[k+1]}_sfm.sav"
 filename_sfm_rf = f"Models/{ml_algo[k+1]}_retrain_sfm.sav"
@@ -322,12 +256,6 @@ del model_sfm
 model_sfm_rf = RandomForestClassifier(n_estimators = 100, random_state = 42,n_jobs=5)
 model_sfm_rf = model_file_check(model_sfm_rf,filename_sfm_rf, X_sfm_train, y_sfm_train)
 
-#prediction_test_train_sfm = model_sfm_rf.predict(X_sfm_train)
-#prediction_test_sfm = model_sfm_rf.predict(X_sfm_test)
-#
-#print (f"{ml_algo[k+1]} Accuracy on training data SFM = {metrics.accuracy_score(y_sfm_train, prediction_test_train_sfm)}")
-#print (f"{ml_algo[k+1]} Accuracy SFM = { metrics.accuracy_score(y_sfm_test, prediction_test_sfm)}")
-
 #%% Following not complete !!!!!!!!!!!!!!!!
 print('\n-------Retrain model based on selected 5 features in Mean Decrease in Impurity(MDI)-------')
 df_list=list(mdi_imp[0:5].index)
@@ -340,39 +268,6 @@ filename_mdi = f"Models/{ml_algo[k+1]}_retrain_mdi.sav"
 model_mdi = RandomForestClassifier(n_estimators = 100, random_state = 42,n_jobs=5)
 model_mdi = model_file_check(model_mdi, filename_mdi, X_mdi_train, y_train)
 
-#prediction_test_train_mdi = model_mdi.predict(X_mdi_train)
-#prediction_test_mdi = model_mdi.predict(X_mdi_test)
-
-#print (f"{ml_algo[k+1]} Accuracy on training data MDI = {metrics.accuracy_score(y_train, prediction_test_train_mdi)}")
-#print (f"{ml_algo[k+1]} Accuracy MDI = { metrics.accuracy_score(y_test, prediction_test_mdi)}")
-
-#%%      
-'''  
-print('\n-------Retrain model based on selected 5 features in permutation_importance()-------')
-
-r2_perm=list(r_multi['accuracy'].importances_mean.argsort())
-feature_name=list(X.columns[sorted_importances_idx])
-dict_features = dict(zip(feature_name, r2_perm))
-sorted_dict = {k: v for k, v in sorted(dict_features.items(), key=lambda item: item[1])}
-last_5 = dict(list(sorted_dict.items())[-5:])
-print(list(last_5.keys()))
-perm_top=list(last_5.keys())
-X_perm=df.loc[:,df_list]
-
-X_perm_train, X_perm_test, y_train, y_test = train_test_split(X_perm, Y, test_size=0.4, random_state=20)
-
-model_perm = RandomForestClassifier(n_estimators = 100, random_state = 42,n_jobs=5)
-#model=MLPClassifier(solver='lbfgs', alpha=1e-5,hidden_layer_sizes=(5, 2), random_state=1)
-#her 5 feature iÃ§in model train et 
-filename_perm = f"{ml_algo[k+1]}_retrain_perm.sav"
-
-model_perm=model_file_check(model_perm, filename_perm, X_perm_train, y_train)
-
-#prediction_test_train_perm = model_perm.predict(X_perm_train)
-#print (f"{ml_algo[k+1]} Accuracy on training data = {metrics.accuracy_score(y_train, prediction_test_train_perm)}")
-prediction_test_perm = model_perm.predict(X_perm_test)
-print (f"{ml_algo[k+1]} Accuracy = { metrics.accuracy_score(y_test, prediction_test_perm)}")
-'''
 del df, X, Y, X_train, X_test, y_train, y_test, X_sfm, X_sfm_train, X_sfm_test, y_sfm_train, y_sfm_test, X_mdi, X_mdi_train, X_mdi_test,model, model_sfm_rf, model_mdi, df_list, selected, mdi_imp
 #%% Predictions
 print('\n-------Predictions-------')
@@ -450,5 +345,3 @@ for i in models:
     if not os.path.exists('Plots'):
         os.makedirs('Plots')
     plt.savefig(f"Plots/prediction_{model_name}_{eye}.png", dpi=300)
-
-# %%
