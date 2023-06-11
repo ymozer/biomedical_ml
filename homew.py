@@ -1,17 +1,21 @@
-#%% Yusuf Metin ÖZER 221805079 https://github.com/ymozer/biomedical_ml
+#%% Yusuf Metin Ã–ZER 221805079 https://github.com/ymozer/biomedical_ml
 import os
 import cv2
+import time
 import pickle
 import numpy as np
 import pandas as pd
-from matplotlib import pyplot as plt
-from skimage.filters import roberts, sobel, scharr, prewitt
-from skimage.feature import local_binary_pattern
 from scipy import ndimage as nd
-from sklearn.ensemble import RandomForestClassifier,AdaBoostRegressor
-from sklearn.neural_network import MLPClassifier
+from matplotlib import pyplot as plt
 from xgboost.sklearn import XGBRegressor
-from sklearn.metrics import mean_squared_error, mean_absolute_error
+from sklearn.neural_network import MLPClassifier
+from skimage.feature import local_binary_pattern, graycomatrix, graycoprops
+from skimage.filters import roberts, sobel, scharr, prewitt
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import confusion_matrix, accuracy_score,\
+    f1_score, recall_score
+from skimage.transform import rotate
+
 from sklearn.inspection import permutation_importance
 from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
@@ -22,11 +26,14 @@ from sklearn.preprocessing import OrdinalEncoder
 from sklearn import metrics
 
 ml_algo={
-    1: "Random Forest",
-    2: "Ada Boost",
+    1: "Random_Forest",
+    2: "Ada_Boost",
     3: "ANN",
     4: "XGBoost"
 }
+
+if not os.path.exists("output"):
+    os.makedirs("output")
 
 def plot(img,label):
     fig = plt.figure()
@@ -34,16 +41,19 @@ def plot(img,label):
     fig.suptitle(label, fontsize=14, fontweight='bold')
     if img.ndim == 2:
         sub.imshow(img, cmap =plt.cm.gray)
-    elif img.ndim ==3:
+    elif img.ndim == 3:
         sub.imshow(img, cmap = 'jet')    
-    plt.show()
-    plt.savefig("ali")
+    plt.draw()
+    plt.savefig(label+".png")
 
 def model_file_check(model, filename:str, X_train, y_train):
     if not os.path.exists(filename):
         print("Model file \" "+filename+" \" doesn't exist.")
+        start = time.time()
         model.fit(X_train, y_train)
-        print(f"Trained {ml_algo[k+1]}.")
+        end = time.time()
+        print(f"Trained {ml_algo[k+1]}.\n\
+              Training time: {end - start} seconds.")
         pickle.dump(model, open(filename, 'wb'))
     
     else:
@@ -51,315 +61,340 @@ def model_file_check(model, filename:str, X_train, y_train):
         model = pickle.load(open(filename, 'rb'))
     return model
 #%%
-for i in range(9):
+lr=''
+# loop over 9 images
+for i in range(1,10):
     for j in range(2):
-        lr=''
-        if j ==0:
+        if j == 0:
             lr='L'
-        elif j==1:
+        elif j == 1:
             lr='R'
-    img_bgr = cv2.imread(f'Dataset/CHASEDB1/Image_0{i+1}{lr}.jpg')
-    plot(img_bgr,f"bgr-{i}")
-    img_rgb= cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-    plot(img_rgb,f'rgb-{i}')
-    img = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)  
-    plot(img,f"GREY-{i}")
     
-    print("bgr: ",img_bgr.ndim)
-    print("gray: ",img.ndim)
-    img2 = img.reshape(-1)
-    df = pd.DataFrame()
-    df['Original Image'] = img2
-#%%   
-    num = 1  
-    kernels = []
-    for theta in range(2):   
-        theta = theta / 4. * np.pi
-        for sigma in (1, 3):  
-            for lamda in np.arange(0, np.pi, np.pi / 4):   
-                for gamma in (0.05, 0.5):   
-                    gabor_label = 'Gabor' + str(num)  
-                    ksize=9
-                    kernel = cv2.getGaborKernel((ksize, ksize), sigma, theta, lamda, gamma, 0, ktype=cv2.CV_32F)    
-                    kernels.append(kernel)
-                    fimg = cv2.filter2D(img2, cv2.CV_8UC3, kernel)
-                    filtered_img = fimg.reshape(-1)
-                    df[gabor_label] = filtered_img  
-                    #print(gabor_label, ': theta=', theta, ': sigma=', sigma, ': lamda=', lamda, ': gamma=', gamma)
-                    num += 1  
-    
-    edges = cv2.Canny(img, 100,200)   
-    plot(edges, "Canny Edges")
-    edges1 = edges.reshape(-1)
-    df['Canny Edge'] = edges1 
-    
-    radius = 7
-    n_points = 8 * radius
-    lbp = local_binary_pattern(img, n_points, radius, 'uniform')
-    lbp_clone = lbp.reshape(-1)
-    df['LBP'] = lbp_clone
-    plot(lbp,'lbp')
-    
-    
-    edge_roberts = roberts(img)
-    edge_roberts1 = edge_roberts.reshape(-1)
-    df['Roberts'] = edge_roberts1
-    plot(edge_roberts,'Roberts')
-    
-    
-    edge_sobel = sobel(img)
-    edge_sobel1 = edge_sobel.reshape(-1)
-    df['Sobel'] = edge_sobel1
-    plot(edge_sobel, "Sobel")
-    
-    
-    edge_scharr = scharr(img)
-    edge_scharr1 = edge_scharr.reshape(-1)
-    df['Scharr'] = edge_scharr1
-    plot(edge_scharr, "Scharr")
-    
-    
-    edge_prewitt = prewitt(img)
-    edge_prewitt1 = edge_prewitt.reshape(-1)
-    df['Prewitt'] = edge_prewitt1
-    plot(edge_prewitt, "Prewitt")
-    
-    gaussian_img = nd.gaussian_filter(img, sigma=3)
-    gaussian_img1 = gaussian_img.reshape(-1)
-    df['Gaussian s3'] = gaussian_img1
-    plot(gaussian_img,"Gaussian 1")
-    
-    
-    gaussian_img2 = nd.gaussian_filter(img, sigma=7)
-    gaussian_img3 = gaussian_img2.reshape(-1)
-    df['Gaussian s7'] = gaussian_img3
-    plot(gaussian_img2,"Gaussian 2")
-    
-    
-    median_img = nd.median_filter(img, size=3)
-    median_img1 = median_img.reshape(-1)
-    df['Median s3'] = median_img1
-    plot(median_img, "Median")
-    
-    variance_img = nd.generic_filter(img, np.var, size=3)
-    variance_img1 = variance_img.reshape(-1)
-    df['Variance s3'] = variance_img1  
-    plot(variance_img, "Variance")
-    
-    labeled_img = cv2.imread(f'Dataset/CHASEDB1/Image_0{j+1}{lr}_1stHO.png')
-    labeled_img = cv2.cvtColor(labeled_img, cv2.COLOR_BGR2GRAY)
-    labeled_img1 = labeled_img.reshape(-1)
-    
-    df['Labels'] = labeled_img1
-    print(df.head())
-    Y = df["Labels"].values
-    X = df.drop(labels = ["Labels"], axis=1) 
-    
-    X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.4, random_state=20)
+        image_features = f"output/Image_0{i}{lr}.csv"
+        if os.path.exists(image_features):
+            print(f"Image features already extracted: {i}{lr}")
+            continue
+
+        img_bgr = cv2.imread(f'Dataset/CHASEDB1/Image_0{i}{lr}.jpg')
+        #plot(img_bgr,f"bgr-{i}")
+        img_rgb= cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+        #plot(img_rgb,f'rgb-{i}')
+        img = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)  
+        #plot(img,f"grey-{i}")
+        img2 = img.reshape(-1)
+        df = pd.DataFrame()
+        df['Original Image'] = img2
+#%%   Gabor
+        num = 1  
+        kernels = []
+        for theta in range(2):   
+            theta = theta / 4. * np.pi
+            for sigma in (1, 3):  
+                for lamda in np.arange(0, np.pi, np.pi / 4):   
+                    for gamma in (0.05, 0.5):   
+                        gabor_label = 'Gabor' + str(num)  
+                        ksize=9
+                        kernel = cv2.getGaborKernel((ksize, ksize), sigma, theta, lamda, gamma, 0, ktype=cv2.CV_32F)    
+                        kernels.append(kernel)
+                        fimg = cv2.filter2D(img2, cv2.CV_8UC3, kernel)
+                        filtered_img = fimg.reshape(-1)
+                        df[gabor_label] = filtered_img  
+                        #print(gabor_label, ': theta=', theta, ': sigma=', sigma, ': lamda=', lamda, ': gamma=', gamma)
+                        num += 1  
+                        
+#%% Other Filters
+        edges = cv2.Canny(img, 100,200)   
+        #plot(edges, "Canny Edges")
+        edges1 = edges.reshape(-1)
+        df['Canny Edge'] = edges1 
+        
+        radius = 4
+        n_points = 8 * radius
+        lbp = local_binary_pattern(img, n_points, radius, 'uniform')
+        lbp_clone = lbp.reshape(-1)
+        df['LBP'] = lbp_clone
+        #plot(lbp,'lbp')
+
+        
+        edge_roberts = roberts(img)
+        edge_roberts1 = edge_roberts.reshape(-1)
+        df['Roberts'] = edge_roberts1
+        #plot(edge_roberts,'Roberts')
+        
+        
+        edge_sobel = sobel(img)
+        edge_sobel1 = edge_sobel.reshape(-1)
+        df['Sobel'] = edge_sobel1
+        #plot(edge_sobel, "Sobel")
+        
+        
+        edge_scharr = scharr(img)
+        edge_scharr1 = edge_scharr.reshape(-1)
+        df['Scharr'] = edge_scharr1
+        #plot(edge_scharr, "Scharr")
+        
+        
+        edge_prewitt = prewitt(img)
+        edge_prewitt1 = edge_prewitt.reshape(-1)
+        df['Prewitt'] = edge_prewitt1
+        #plot(edge_prewitt, "Prewitt")
+        
+        gaussian_img = nd.gaussian_filter(img, sigma=3)
+        gaussian_img1 = gaussian_img.reshape(-1)
+        df['Gaussian s3'] = gaussian_img1
+        #plot(gaussian_img,"Gaussian 1")
+        
+        
+        gaussian_img2 = nd.gaussian_filter(img, sigma=7)
+        gaussian_img3 = gaussian_img2.reshape(-1)
+        df['Gaussian s7'] = gaussian_img3
+        #plot(gaussian_img2,"Gaussian 2")
+        
+        
+        median_img = nd.median_filter(img, size=3)
+        median_img1 = median_img.reshape(-1)
+        df['Median s3'] = median_img1
+        #plot(median_img, "Median")
+        
+        variance_img = nd.generic_filter(img, np.var, size=3)
+        variance_img1 = variance_img.reshape(-1)
+        df['Variance s3'] = variance_img1  
+        #plot(variance_img, "Variance")
+        
+        labeled_img = cv2.imread(f'Dataset/CHASEDB1/Image_0{i}{lr}_1stHO.png')
+        labeled_img = cv2.cvtColor(labeled_img, cv2.COLOR_BGR2GRAY)
+        labeled_img1 = labeled_img.reshape(-1)
+        df['Labels'] = labeled_img1
+
+        df.to_csv(image_features, index=False)
+# image loop end 
+
+if not os.path.exists("output/combined1_9.csv"):
+    dfs = []  # List to store the individual dataframes
+    for i in range(1,10):
+        for j in range(2):
+            if j == 0:
+                lr='L'
+            elif j == 1:
+                lr='R'
+            df=pd.read_csv(f"output/Image_0{i}{lr}.csv")
+            dfs.append(df)
+
+    # Concatenate all dataframes in the list
+    df = pd.concat(dfs, ignore_index=True)
+    df.to_csv("output/combined1_9.csv", index=False)
+else:
+    df = pd.read_csv("output/combined1_9.csv", index_col=False)
+
+print(f"shape of combined df: {str(df.shape)}")
+print(f"columns of combined df: {list(df.columns)}")
+
+
+#%%     split dataset
+Y = df["Labels"].values
+X = df.drop(labels = ["Labels"], axis=1) 
+
+X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.4, random_state=20)
+
 #%% ALGORITHM SELECT -- DEACTIVATED
-    #for k in range(2):
-    k=0
-    print("Random forest")
-    model = RandomForestClassifier(n_estimators = 100, random_state = 42,n_jobs=5)
-    #model=MLPClassifier(solver='lbfgs', alpha=1e-5,hidden_layer_sizes=(5, 2), random_state=1)
-    #her 5 feature için model train et 
-    filename = f"Segmented_model_eye_{ml_algo[k+1]}.sav"
+#for k in range(2):
+k=0
+print("Algorithm: "+ml_algo[k+1])
+model = RandomForestClassifier(n_estimators = 100, random_state = 42,n_jobs=5)
+#model=MLPClassifier(solver='lbfgs', alpha=1e-5,hidden_layer_sizes=(5, 2), random_state=1)
+#her 5 feature iÃ§in model train et 
+# her göz için ayrı model yapıyorum çünkğ tek gözle yapılan training yetersiz gibi
+filename = f"Models/{ml_algo[k+1]}.sav"
+if not os.path.exists('Models'):
+    os.makedirs('Models')
 
-    if not os.path.exists(filename):
-        print("model file "+filename+" don't exists.")
-        model.fit(X_train, y_train)
-        print(f"Trained {ml_algo[k+1]}.")
-        pickle.dump(model, open(filename, 'wb'))
+if not os.path.exists(filename):
+    print("model file "+filename+" don't exists.\nTraining...")
+    start = time.time()
+    model.fit(X_train, y_train)
+    end = time.time()
+    print(f"Trained {ml_algo[k+1]}.\nTraining time: {end - start} seconds.")
+    pickle.dump(model, open(filename, 'wb'))
 
-    else:
-        print("Loading model: "+filename)
-        model = pickle.load(open(filename, 'rb'))
+else:
+    print("Loading model: "+filename)
+    model = pickle.load(open(filename, 'rb'))
 #%% PREDICT
-    prediction_test_train = model.predict(X_train)
-    prediction_test = model.predict(X_test)
-    if k==0:
-        print (f"{ml_algo[k+1]} Accuracy on training data = {metrics.accuracy_score(y_train, prediction_test_train)}")
-        print (f"{ml_algo[k+1]} Accuracy = { metrics.accuracy_score(y_test, prediction_test)}")
-    else:
-        mse=mean_squared_error(y_test, prediction_test)
-        rmse = np.sqrt(mse)
-        r2 = model.score(X_test, y_test)
-        print(f"{ml_algo[k+1]}--RMSE:{rmse}")
-        print(f"{ml_algo[k+1]}--R^2:{r2}")
-
-#%% FEATURE SELECTİON USİNG MDI -- METHOD I
-    # First way to assaign importance MDI
-    feature_list = list(X.columns)
-    mdi_imp = pd.Series(model.feature_importances_,index=feature_list).sort_values(ascending=False)
-    print("First 5  Mean Decrease in Impurity(MDI)"+str(list(mdi_imp[0:5].index)))
-    first_five=list(mdi_imp[0:5].index)
-    first_five_feature=X_test[first_five].copy()
+prediction_test_train = model.predict(X_train)
+prediction_test = model.predict(X_test)
+conf_matrix = confusion_matrix(y_true=y_test, y_pred=prediction_test)
+fig, ax = plt.subplots(figsize=(7.5, 7.5))
+ax.matshow(conf_matrix, cmap=plt.cm.Blues, alpha=0.3)
+for l in range(conf_matrix.shape[0]):
+    for f in range(conf_matrix.shape[1]):
+        ax.text(x=l, y=f,s=conf_matrix[l, f], va='center', ha='center', size='xx-large')
     
-    # Plot first 5 features based on mdi
-    ax = mdi_imp[0:5].plot.barh()
-    ax.set_title("Random Forest Feature Importances (MDI)")
-    ax.figure.tight_layout()
+plt.xlabel('Predictions', fontsize=18)
+plt.ylabel('Actuals', fontsize=18)
+plt.title(f'{ml_algo[k+1]} {i}{lr} Confusion Matrix', fontsize=18)
+plt.show()
 
-#%% Feature Selection using PERMUTATİON IMPORTANCE -- METHOD II
+print (f"{ml_algo[k+1]} {i}{lr}  Accuracy on training data = {metrics.accuracy_score(y_train, prediction_test_train)}")
+print (f"{ml_algo[k+1]} {i}{lr}  Accuracy = { accuracy_score(y_test, prediction_test)}")
+print (f"{ml_algo[k+1]} {i}{lr}  F1 score = { f1_score(y_test, prediction_test,average=None)}")
 
-    scoring = ['r2', 'neg_mean_absolute_percentage_error', 'neg_mean_squared_error']
-    header_list = df.columns.tolist()
 
-    filename_permutation = "permutation_importance.sav"
+#%% FEATURE SELECTÄ°ON USÄ°NG MDI -- METHOD I
+# First way to assaign importance MDI
+feature_list = list(X.columns)
+mdi_imp = pd.Series(model.feature_importances_,index=feature_list).sort_values(ascending=False)
+print("First 5  Mean Decrease in Impurity(MDI)"+str(list(mdi_imp[0:5].index)))
+first_five=list(mdi_imp[0:5].index)
+first_five_feature=X_test[first_five].copy()
 
-    if not os.path.exists(filename_permutation):
-        print("file "+filename_permutation+" don't exists.")
-        r_multi = permutation_importance(model, X_test, y_test, n_repeats=2, n_jobs=3, random_state=0, scoring=scoring)
-        print("Finished permutation_importance calculation.")
-        pickle.dump(r_multi, open(filename_permutation, 'wb'))
+# Plot first 5 features based on mdi
+ax = mdi_imp[0:5].plot.barh()
+ax.set_title("Random Forest Feature Importances (MDI)")
+ax.figure.tight_layout()
 
-    else:
-        print("Loading model: "+filename_permutation)
-        r_multi = pickle.load(open(filename_permutation, 'rb'))
+#%% Feature Selection using PERMUTATÄ°ON IMPORTANCE -- METHOD II
 
-    count=0
-    for metric in r_multi:
-        print(f"{metric}")
-        r = r_multi[metric]
-        sorted_importances_idx = r.importances_mean.argsort()
-        print(sorted_importances_idx)
-        importances = pd.DataFrame(
-            r.importances[sorted_importances_idx].T,
-            columns=X.columns[sorted_importances_idx],
-        )
-        fig, ax = plt.subplots(figsize=(10, 6))
-        importances.plot.box(vert=False, whis=10, ax=ax)
-        ax.set_title(f"{metric} Permutation Importances (test set)")
-        ax.set_xlabel("Decrease in accuracy score")
-        ax.axvline(x=0, color="k", linestyle="--")
-        fig.tight_layout()
-        plt.show()
-        count+=1
+scoring = ['accuracy', 'roc_auc']
+header_list = df.columns.tolist()
+
+filename_permutation = f"{i}{lr}_permutation_importance.sav"
+
+if not os.path.exists(filename_permutation):
+    print("file "+filename_permutation+" don't exists.")
+    r_multi = permutation_importance(model, X_test, y_test, n_repeats=2, n_jobs=3, random_state=33, scoring=scoring)
+    print("Finished permutation_importance calculation.")
+    pickle.dump(r_multi, open(filename_permutation, 'wb'))
+
+else:
+    print("Loading model: "+filename_permutation)
+    r_multi = pickle.load(open(filename_permutation, 'rb'))
+
+count=0
+for metric in r_multi:
+    print(f"{metric}")
+    r = r_multi[metric]
+    sorted_importances_idx = r.importances_mean.argsort()
+    print(sorted_importances_idx)
+    importances = pd.DataFrame(
+        r.importances[sorted_importances_idx].T,
+        columns=X.columns[sorted_importances_idx],
+    )
+    fig, ax = plt.subplots(figsize=(10, 6))
+    importances.plot.box(vert=False, whis=10, ax=ax)
+    ax.set_title(f"{metric} Permutation Importances (test set)")
+    ax.set_xlabel("Decrease in accuracy score")
+    ax.axvline(x=0, color="k", linestyle="--")
+    fig.tight_layout()
+    plt.show()
+    count+=1
 #%%     SelectFromModel -- METHOD III
-    from sklearn.feature_selection import SelectFromModel
-    '''
-    Research RFE (Recursive Feature Extraction)
-    '''
-    
-    print('\n-------Retrain model based on selected 5 features from SelectFromModel()-------')
+from sklearn.feature_selection import SelectFromModel
+'''
+Research RFE (Recursive Feature Extraction)
+'''
 
-    model_sfm = SelectFromModel(model, threshold=-np.inf,max_features=5)
-    filename_sfm = f"Segmented_model_eye_{ml_algo[k+1]}_sfm.sav"
-    filename_sfm_rf = f"Segmented_model_eye_{ml_algo[k+1]}_retrain_sfm.sav"
+print('\n-------Retrain model based on selected 5 features from SelectFromModel()-------')
 
-    if not os.path.exists(filename_sfm):
-        print("model file "+filename_sfm+" don't exists.")
-        model_sfm.fit(X, Y)
-        print(f"Trained {ml_algo[k+1]}.")
-        pickle.dump(model_sfm, open(filename_sfm, 'wb'))
+model_sfm = SelectFromModel(model, threshold=-np.inf,max_features=5)
+filename_sfm = f"{ml_algo[k+1]}_{i}{lr}_sfm.sav"
+filename_sfm_rf = f"{ml_algo[k+1]}_{i}{lr}_retrain_sfm.sav"
 
-    else:
-        print("Loading model: "+filename_sfm)
-        model_sfm = pickle.load(open(filename_sfm, 'rb'))
-    
-    selected=[]
-    for i in model_sfm.get_support(indices=True):
-        selected.append(list(model_sfm.feature_names_in_)[i])
-    X_sfm=df.loc[:,selected]
-    X_sfm_train, X_sfm_test, y_sfm_train, y_sfm_test = train_test_split(X_sfm, Y, test_size=0.4, random_state=20)
-    print(f"Features selected by SelectFromModel: {selected}")
-    del model_sfm
-    
-    model_sfm_rf = RandomForestClassifier(n_estimators = 100, random_state = 42,n_jobs=5)
-    model_sfm_rf = model_file_check(model_sfm_rf,filename_sfm_rf, X_sfm_train, y_sfm_train)
-    
-    prediction_test_train_sfm = model_sfm_rf.predict(X_sfm_train)
-    prediction_test_sfm = model_sfm_rf.predict(X_sfm_test)
-    if k==0:
-        print (f"{ml_algo[k+1]} Accuracy on training data SFM = {metrics.accuracy_score(y_sfm_train, prediction_test_train_sfm)}")
-        print (f"{ml_algo[k+1]} Accuracy SFM = { metrics.accuracy_score(y_sfm_test, prediction_test_sfm)}")
-    else:
-        mse=mean_squared_error(y_sfm_test, prediction_test_sfm)
-        rmse = np.sqrt(mse)
-        r2 = model_sfm_rf.score(X_sfm_test, y_sfm_test)
-        print(f"{ml_algo[k+1]}--RMSE:{rmse}")
-        print(f"{ml_algo[k+1]}--R^2:{r2}")
+if not os.path.exists(filename_sfm):
+    print("model file "+filename_sfm+" don't exists.")
+    model_sfm.fit(X, Y)
+    print(f"Trained {ml_algo[k+1]}_{i}{lr}.")
+    pickle.dump(model_sfm, open(filename_sfm, 'wb'))
+
+else:
+    print("Loading model: "+filename_sfm)
+    model_sfm = pickle.load(open(filename_sfm, 'rb'))
+
+selected=[]
+for h in model_sfm.get_support(indices=True):
+    selected.append(list(model_sfm.feature_names_in_)[h])
+X_sfm=df.loc[:,selected]
+X_sfm_train, X_sfm_test, y_sfm_train, y_sfm_test = train_test_split(X_sfm, Y, test_size=0.4, random_state=20)
+print(f"Features selected by SelectFromModel: {selected}")
+del model_sfm
+
+model_sfm_rf = RandomForestClassifier(n_estimators = 100, random_state = 42,n_jobs=5)
+model_sfm_rf = model_file_check(model_sfm_rf,filename_sfm_rf, X_sfm_train, y_sfm_train)
+
+prediction_test_train_sfm = model_sfm_rf.predict(X_sfm_train)
+prediction_test_sfm = model_sfm_rf.predict(X_sfm_test)
+
+print (f"{ml_algo[k+1]}_{i}{lr} Accuracy on training data SFM = {metrics.accuracy_score(y_sfm_train, prediction_test_train_sfm)}")
+print (f"{ml_algo[k+1]}_{i}{lr} Accuracy SFM = { metrics.accuracy_score(y_sfm_test, prediction_test_sfm)}")
+
 #%% Following not complete !!!!!!!!!!!!!!!!
-    print('\n-------Retrain model based on selected 5 features in Mean Decrease in Impurity(MDI)-------')
-    df_list=list(mdi_imp[0:5].index)
-    df_list.append("Original Image")
-    X_mdi=df.loc[:,df_list]
+print('\n-------Retrain model based on selected 5 features in Mean Decrease in Impurity(MDI)-------')
+df_list=list(mdi_imp[0:5].index)
+df_list.append("Original Image")
+X_mdi=df.loc[:,df_list]
+print(X_mdi.columns)
+X_mdi_train, X_mdi_test, y_train, y_test = train_test_split(X_mdi, Y, test_size=0.4, random_state=20)
 
-    X_mdi_train, X_mdi_test, y_train, y_test = train_test_split(X_mdi, Y, test_size=0.4, random_state=20)
-    
-    model_mdi = RandomForestClassifier(n_estimators = 100, random_state = 42,n_jobs=5)
-    #model=MLPClassifier(solver='lbfgs', alpha=1e-5,hidden_layer_sizes=(5, 2), random_state=1)
-    #her 5 feature için model train et 
-    filename2 = f"Segmented_model_eye_{ml_algo[k+1]}_retrain_mdi.sav"
+model_mdi = RandomForestClassifier(n_estimators = 100, random_state = 42,n_jobs=5)
+#model=MLPClassifier(solver='lbfgs', alpha=1e-5,hidden_layer_sizes=(5, 2), random_state=1)
+#her 5 feature iÃ§in model train et 
+print(i,j)
+filename2 = f"Models/{ml_algo[k+1]}_{i}{lr}_retrain_mdi.sav"
+model_mdi.fit(X_mdi_train, y_train)
+model_mdi=model_file_check(model_mdi, filename2, X_mdi_train, y_train)
+prediction_test_train_mdi = model_mdi.predict(X_mdi_train)
+prediction_test_mdi = model_mdi.predict(X_mdi_test)
 
-    model_mdi=model_file_check(model_mdi, filename2, X_mdi_train, y_train)
+print (f"{ml_algo[k+1]} Accuracy on training data = {metrics.accuracy_score(y_train, prediction_test_train_mdi)}")
+print (f"{ml_algo[k+1]} Accuracy = { metrics.accuracy_score(y_test, prediction_test_mdi)}")
 
-    prediction_test_train_mdi = model_mdi.predict(X_mdi_train)
-    prediction_test_mdi = model_mdi.predict(X_mdi_test)
-    if k==0:
-        print (f"{ml_algo[k+1]} Accuracy on training data = {metrics.accuracy_score(y_train, prediction_test_train_mdi)}")
-        print (f"{ml_algo[k+1]} Accuracy = { metrics.accuracy_score(y_test, prediction_test_mdi)}")
-    else:
-        mse=mean_squared_error(y_test, prediction_test)
-        rmse = np.sqrt(mse)
-        r2 = model_mdi.score(X_mdi_test, y_test)
-        print(f"{ml_algo[k+1]}--RMSE:{rmse}")
-        print(f"{ml_algo[k+1]}--R^2:{r2}")
 #%%        
-    print('\n-------Retrain model based on selected 5 features in permutation_importance()-------')
+print('\n-------Retrain model based on selected 5 features in permutation_importance()-------')
 
-    r2_perm=list(r_multi['r2'].importances_mean.argsort())
-    feature_name=list(X.columns[sorted_importances_idx])
-    dict_features = dict(zip(feature_name, r2_perm))
-    sorted_dict = {k: v for k, v in sorted(dict_features.items(), key=lambda item: item[1])}
-    last_5 = dict(list(sorted_dict.items())[-5:])
-    print(list(last_5.keys()))
-    perm_top=list(last_5.keys())
-    X_perm=df.loc[:,df_list]
+r2_perm=list(r_multi['accuracy'].importances_mean.argsort())
+feature_name=list(X.columns[sorted_importances_idx])
+dict_features = dict(zip(feature_name, r2_perm))
+sorted_dict = {k: v for k, v in sorted(dict_features.items(), key=lambda item: item[1])}
+last_5 = dict(list(sorted_dict.items())[-5:])
+print(list(last_5.keys()))
+perm_top=list(last_5.keys())
+X_perm=df.loc[:,df_list]
 
-    X_perm_train, X_perm_test, y_train, y_test = train_test_split(X_perm, Y, test_size=0.4, random_state=20)
+X_perm_train, X_perm_test, y_train, y_test = train_test_split(X_perm, Y, test_size=0.4, random_state=20)
 
-    model_perm = RandomForestClassifier(n_estimators = 100, random_state = 42,n_jobs=5)
-    #model=MLPClassifier(solver='lbfgs', alpha=1e-5,hidden_layer_sizes=(5, 2), random_state=1)
-    #her 5 feature için model train et 
-    filename_perm = f"Segmented_model_eye_{ml_algo[k+1]}_retrain_perm.sav"
-    
-    model_perm=model_file_check(model_perm, filename_perm, X_perm_train, y_train)
+model_perm = RandomForestClassifier(n_estimators = 100, random_state = 42,n_jobs=5)
+#model=MLPClassifier(solver='lbfgs', alpha=1e-5,hidden_layer_sizes=(5, 2), random_state=1)
+#her 5 feature iÃ§in model train et 
+filename_perm = f"{ml_algo[k+1]}_{i}{lr}_retrain_perm.sav"
 
-    prediction_test_train_perm = model_perm.predict(X_perm_train)
-    prediction_test_perm = model_perm.predict(X_perm_test)
-    if k==0:
-        print (f"{ml_algo[k+1]} Accuracy on training data = {metrics.accuracy_score(y_train, prediction_test_train_perm)}")
-        print (f"{ml_algo[k+1]} Accuracy = { metrics.accuracy_score(y_test, prediction_test_perm)}")
-    else:
-        mse=mean_squared_error(y_test, prediction_test)
-        rmse = np.sqrt(mse)
-        r2 = model_perm.score(X_perm_test, y_test)
-        print(f"{ml_algo[k+1]}--RMSE:{rmse}")
-        print(f"{ml_algo[k+1]}--R^2:{r2}")
+model_perm=model_file_check(model_perm, filename_perm, X_perm_train, y_train)
 
-    accuracy_results = {
-        "sfm" : prediction_test_sfm,
-        "mdi" : prediction_test_mdi,
-        "perm": prediction_test_perm
-    }
+#prediction_test_train_perm = model_perm.predict(X_perm_train)
+#print (f"{ml_algo[k+1]} Accuracy on training data = {metrics.accuracy_score(y_train, prediction_test_train_perm)}")
+prediction_test_perm = model_perm.predict(X_perm_test)
+print (f"{ml_algo[k+1]} Accuracy = { metrics.accuracy_score(y_test, prediction_test_perm)}")
+
+accuracy_results = {
+    "sfm" : prediction_test_sfm,
+    "mdi" : prediction_test_mdi,
+    "perm": prediction_test_perm
+}
 #%%
-    result=model.predict(X)
-    result_selected_perm=model_perm.predict(X_perm)
-    result_selected_sfm=model_sfm_rf.predict(X_sfm)
-    result_selected_mdi=model_mdi.predict(X_mdi)
+result=model.predict(X)
+result_selected_perm=model_perm.predict(X_perm)
+result_selected_sfm=model_sfm_rf.predict(X_sfm)
+result_selected_mdi=model_mdi.predict(X_mdi)
 
-    segmented = result.reshape((img.shape))
-    segmented_selected_perm = result_selected_perm.reshape((img.shape))
-    segmented_selected_sfm = result_selected_sfm.reshape((img.shape))
-    segmented_selected_mdi = result_selected_mdi.reshape((img.shape))
-    
-    plot(segmented,f"{ml_algo[k+1]} estimated result")
-    plot(segmented_selected_perm,f"{ml_algo[k+1]} selected 'Permutation' estimated result")
-    plot(segmented_selected_sfm,f"{ml_algo[k+1]} selected 'Select From Model' estimated result")
-    plot(segmented_selected_mdi,f"{ml_algo[k+1]} selected 'MDI' estimated result")
+segmented = result.reshape((img.shape))
+segmented_selected_perm = result_selected_perm.reshape((img.shape))
+segmented_selected_sfm = result_selected_sfm.reshape((img.shape))
+segmented_selected_mdi = result_selected_mdi.reshape((img.shape))
 
-    plt.imsave(f'segmented_eye_estimated{k}.jpg', segmented, cmap ='jet')
-    plt.imsave(f'segmented_selected_perm{k}.jpg', segmented_selected_perm, cmap='jet')
-    plt.imsave(f'segmented_selected_sfm{k}.jpg', segmented_selected_sfm, cmap='jet')
-    plt.imsave(f'segmented_selected_mdi{k}.jpg', segmented_selected_mdi, cmap='jet')
+plot(segmented,f"{ml_algo[k+1]}_{i}{lr} Prediction")
+plot(segmented_selected_perm,f"{ml_algo[k+1]}_{i}{lr} selected 'Permutation' estimated result")
+plot(segmented_selected_sfm,f"{ml_algo[k+1]}_{i}{lr} selected 'Select From Model' estimated result")
+plot(segmented_selected_mdi,f"{ml_algo[k+1]}_{i}{lr} selected 'MDI' estimated result")
+
+plt.imsave(f'output/segmented_eye_estimated_{i}{lr}.jpg', segmented, cmap ='jet')
+plt.imsave(f'output/segmented_selected_perm_{i}{lr}.jpg', segmented_selected_perm, cmap='jet')
+plt.imsave(f'output/segmented_selected_sfm_{i}{lr}.jpg', segmented_selected_sfm, cmap='jet')
+plt.imsave(f'output/segmented_selected_mdi_{i}{lr}.jpg', segmented_selected_mdi, cmap='jet')

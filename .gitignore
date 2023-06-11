@@ -1,11 +1,11 @@
 /__pycache__
-/bin
-/Include
-/Lib
+/venv
 /Scripts
 /bin
 /lib
 /xgboost
+/Models
+/output
 *.npz
 *.cfg
 *.png
