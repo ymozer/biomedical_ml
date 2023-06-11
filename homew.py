@@ -13,7 +13,7 @@ from skimage.feature import local_binary_pattern, graycomatrix, graycoprops
 from skimage.filters import roberts, sobel, scharr, prewitt
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix, accuracy_score,\
-    f1_score, recall_score
+    f1_score, recall_score, precision_score
 from skimage.transform import rotate
 
 from sklearn.inspection import permutation_importance
@@ -219,24 +219,25 @@ if not os.path.exists(filename):
 else:
     print("Loading model: "+filename)
     model = pickle.load(open(filename, 'rb'))
-#%% PREDICT
-prediction_test_train = model.predict(X_train)
-prediction_test = model.predict(X_test)
-conf_matrix = confusion_matrix(y_true=y_test, y_pred=prediction_test)
-fig, ax = plt.subplots(figsize=(7.5, 7.5))
-ax.matshow(conf_matrix, cmap=plt.cm.Blues, alpha=0.3)
-for l in range(conf_matrix.shape[0]):
-    for f in range(conf_matrix.shape[1]):
-        ax.text(x=l, y=f,s=conf_matrix[l, f], va='center', ha='center', size='xx-large')
-    
-plt.xlabel('Predictions', fontsize=18)
-plt.ylabel('Actuals', fontsize=18)
-plt.title(f'{ml_algo[k+1]} {i}{lr} Confusion Matrix', fontsize=18)
-plt.show()
 
-print (f"{ml_algo[k+1]} {i}{lr}  Accuracy on training data = {metrics.accuracy_score(y_train, prediction_test_train)}")
-print (f"{ml_algo[k+1]} {i}{lr}  Accuracy = { accuracy_score(y_test, prediction_test)}")
-print (f"{ml_algo[k+1]} {i}{lr}  F1 score = { f1_score(y_test, prediction_test,average=None)}")
+#%% PREDICT
+#prediction_test_train = model.predict(X_train)
+#prediction_test = model.predict(X_test)
+#conf_matrix = confusion_matrix(y_true=y_test, y_pred=prediction_test)
+#fig, ax = plt.subplots(figsize=(7.5, 7.5))
+#ax.matshow(conf_matrix, cmap=plt.cm.Blues, alpha=0.3)
+#for l in range(conf_matrix.shape[0]):
+#    for f in range(conf_matrix.shape[1]):
+#        ax.text(x=l, y=f,s=conf_matrix[l, f], va='center', ha='center', size='xx-large')
+#    
+#plt.xlabel('Predictions', fontsize=18)
+#plt.ylabel('Actuals', fontsize=18)
+#plt.title(f'{ml_algo[k+1]}Confusion Matrix', fontsize=18)
+#plt.show()
+#
+#print (f"{ml_algo[k+1]} Accuracy on training data = {metrics.accuracy_score(y_train, prediction_test_train)}")
+#print (f"{ml_algo[k+1]} Accuracy = { accuracy_score(y_test, prediction_test)}")
+#print (f"{ml_algo[k+1]} F1 score = { f1_score(y_test, prediction_test,average=None)}")
 
 
 #%% FEATURE SELECTÄ°ON USÄ°NG MDI -- METHOD I
@@ -251,17 +252,18 @@ first_five_feature=X_test[first_five].copy()
 ax = mdi_imp[0:5].plot.barh()
 ax.set_title("Random Forest Feature Importances (MDI)")
 ax.figure.tight_layout()
+plt.show()
 
 #%% Feature Selection using PERMUTATÄ°ON IMPORTANCE -- METHOD II
-
+'''
 scoring = ['accuracy', 'roc_auc']
 header_list = df.columns.tolist()
 
-filename_permutation = f"{i}{lr}_permutation_importance.sav"
+filename_permutation = f"Models/permutation_importance.sav"
 
 if not os.path.exists(filename_permutation):
     print("file "+filename_permutation+" don't exists.")
-    r_multi = permutation_importance(model, X_test, y_test, n_repeats=2, n_jobs=3, random_state=33, scoring=scoring)
+    r_multi = permutation_importance(model, X_test, y_test, n_repeats=2, n_jobs=-1, random_state=33, scoring=scoring)
     print("Finished permutation_importance calculation.")
     pickle.dump(r_multi, open(filename_permutation, 'wb'))
 
@@ -287,6 +289,7 @@ for metric in r_multi:
     fig.tight_layout()
     plt.show()
     count+=1
+'''
 #%%     SelectFromModel -- METHOD III
 from sklearn.feature_selection import SelectFromModel
 '''
@@ -296,13 +299,12 @@ Research RFE (Recursive Feature Extraction)
 print('\n-------Retrain model based on selected 5 features from SelectFromModel()-------')
 
 model_sfm = SelectFromModel(model, threshold=-np.inf,max_features=5)
-filename_sfm = f"{ml_algo[k+1]}_{i}{lr}_sfm.sav"
-filename_sfm_rf = f"{ml_algo[k+1]}_{i}{lr}_retrain_sfm.sav"
-
+filename_sfm = f"Models/{ml_algo[k+1]}_sfm.sav"
+filename_sfm_rf = f"Models/{ml_algo[k+1]}_retrain_sfm.sav"
 if not os.path.exists(filename_sfm):
     print("model file "+filename_sfm+" don't exists.")
     model_sfm.fit(X, Y)
-    print(f"Trained {ml_algo[k+1]}_{i}{lr}.")
+    print(f"Trained {ml_algo[k+1]}.")
     pickle.dump(model_sfm, open(filename_sfm, 'wb'))
 
 else:
@@ -320,11 +322,11 @@ del model_sfm
 model_sfm_rf = RandomForestClassifier(n_estimators = 100, random_state = 42,n_jobs=5)
 model_sfm_rf = model_file_check(model_sfm_rf,filename_sfm_rf, X_sfm_train, y_sfm_train)
 
-prediction_test_train_sfm = model_sfm_rf.predict(X_sfm_train)
-prediction_test_sfm = model_sfm_rf.predict(X_sfm_test)
-
-print (f"{ml_algo[k+1]}_{i}{lr} Accuracy on training data SFM = {metrics.accuracy_score(y_sfm_train, prediction_test_train_sfm)}")
-print (f"{ml_algo[k+1]}_{i}{lr} Accuracy SFM = { metrics.accuracy_score(y_sfm_test, prediction_test_sfm)}")
+#prediction_test_train_sfm = model_sfm_rf.predict(X_sfm_train)
+#prediction_test_sfm = model_sfm_rf.predict(X_sfm_test)
+#
+#print (f"{ml_algo[k+1]} Accuracy on training data SFM = {metrics.accuracy_score(y_sfm_train, prediction_test_train_sfm)}")
+#print (f"{ml_algo[k+1]} Accuracy SFM = { metrics.accuracy_score(y_sfm_test, prediction_test_sfm)}")
 
 #%% Following not complete !!!!!!!!!!!!!!!!
 print('\n-------Retrain model based on selected 5 features in Mean Decrease in Impurity(MDI)-------')
@@ -334,20 +336,18 @@ X_mdi=df.loc[:,df_list]
 print(X_mdi.columns)
 X_mdi_train, X_mdi_test, y_train, y_test = train_test_split(X_mdi, Y, test_size=0.4, random_state=20)
 
+filename_mdi = f"Models/{ml_algo[k+1]}_retrain_mdi.sav"
 model_mdi = RandomForestClassifier(n_estimators = 100, random_state = 42,n_jobs=5)
-#model=MLPClassifier(solver='lbfgs', alpha=1e-5,hidden_layer_sizes=(5, 2), random_state=1)
-#her 5 feature iÃ§in model train et 
-print(i,j)
-filename2 = f"Models/{ml_algo[k+1]}_{i}{lr}_retrain_mdi.sav"
-model_mdi.fit(X_mdi_train, y_train)
-model_mdi=model_file_check(model_mdi, filename2, X_mdi_train, y_train)
-prediction_test_train_mdi = model_mdi.predict(X_mdi_train)
-prediction_test_mdi = model_mdi.predict(X_mdi_test)
+model_mdi = model_file_check(model_mdi, filename_mdi, X_mdi_train, y_train)
 
-print (f"{ml_algo[k+1]} Accuracy on training data = {metrics.accuracy_score(y_train, prediction_test_train_mdi)}")
-print (f"{ml_algo[k+1]} Accuracy = { metrics.accuracy_score(y_test, prediction_test_mdi)}")
+#prediction_test_train_mdi = model_mdi.predict(X_mdi_train)
+#prediction_test_mdi = model_mdi.predict(X_mdi_test)
 
-#%%        
+#print (f"{ml_algo[k+1]} Accuracy on training data MDI = {metrics.accuracy_score(y_train, prediction_test_train_mdi)}")
+#print (f"{ml_algo[k+1]} Accuracy MDI = { metrics.accuracy_score(y_test, prediction_test_mdi)}")
+
+#%%      
+'''  
 print('\n-------Retrain model based on selected 5 features in permutation_importance()-------')
 
 r2_perm=list(r_multi['accuracy'].importances_mean.argsort())
@@ -364,7 +364,7 @@ X_perm_train, X_perm_test, y_train, y_test = train_test_split(X_perm, Y, test_si
 model_perm = RandomForestClassifier(n_estimators = 100, random_state = 42,n_jobs=5)
 #model=MLPClassifier(solver='lbfgs', alpha=1e-5,hidden_layer_sizes=(5, 2), random_state=1)
 #her 5 feature iÃ§in model train et 
-filename_perm = f"{ml_algo[k+1]}_{i}{lr}_retrain_perm.sav"
+filename_perm = f"{ml_algo[k+1]}_retrain_perm.sav"
 
 model_perm=model_file_check(model_perm, filename_perm, X_perm_train, y_train)
 
@@ -372,29 +372,83 @@ model_perm=model_file_check(model_perm, filename_perm, X_perm_train, y_train)
 #print (f"{ml_algo[k+1]} Accuracy on training data = {metrics.accuracy_score(y_train, prediction_test_train_perm)}")
 prediction_test_perm = model_perm.predict(X_perm_test)
 print (f"{ml_algo[k+1]} Accuracy = { metrics.accuracy_score(y_test, prediction_test_perm)}")
+'''
+del df, X, Y, X_train, X_test, y_train, y_test, X_sfm, X_sfm_train, X_sfm_test, y_sfm_train, y_sfm_test, X_mdi, X_mdi_train, X_mdi_test,model, model_sfm_rf, model_mdi, df_list, selected, mdi_imp
+#%% Predictions
+print('\n-------Predictions-------')
+model = pickle.load(open('Models/Random_Forest.sav', 'rb'))
+model_sfm_rf = pickle.load(open('Models/Random_Forest_retrain_sfm.sav', 'rb'))
+model_mdi = pickle.load(open('Models/Random_Forest_retrain_mdi.sav', 'rb'))
+#%% 
+models= [model, model_sfm_rf, model_mdi]
 
-accuracy_results = {
-    "sfm" : prediction_test_sfm,
-    "mdi" : prediction_test_mdi,
-    "perm": prediction_test_perm
-}
-#%%
-result=model.predict(X)
-result_selected_perm=model_perm.predict(X_perm)
-result_selected_sfm=model_sfm_rf.predict(X_sfm)
-result_selected_mdi=model_mdi.predict(X_mdi)
+eye="11R"
+rgb_image = f"Dataset/CHASEDB1/Image_{eye}.jpg"
+image_features=f'output/Image_{eye}.csv'
+mask_image = f"Dataset/CHASEDB1/Image_{eye}_1stHO.png"
 
-segmented = result.reshape((img.shape))
-segmented_selected_perm = result_selected_perm.reshape((img.shape))
-segmented_selected_sfm = result_selected_sfm.reshape((img.shape))
-segmented_selected_mdi = result_selected_mdi.reshape((img.shape))
+labeled_img = cv2.imread(mask_image)
+labeled_img = cv2.cvtColor(labeled_img, cv2.COLOR_BGR2GRAY)
 
-plot(segmented,f"{ml_algo[k+1]}_{i}{lr} Prediction")
-plot(segmented_selected_perm,f"{ml_algo[k+1]}_{i}{lr} selected 'Permutation' estimated result")
-plot(segmented_selected_sfm,f"{ml_algo[k+1]}_{i}{lr} selected 'Select From Model' estimated result")
-plot(segmented_selected_mdi,f"{ml_algo[k+1]}_{i}{lr} selected 'MDI' estimated result")
+for i in models:
+    model_name = ""
+    if i == model:
+        print('model before feature selection')
+        model_name = "Random Forest"
+    elif i == model_sfm_rf:
+        print('model after feature selection with SelectFromModel')
+        model_name = "Random Forest SelectFromModel"
+    elif i == model_mdi:
+        print('model after feature selection with Mean Decrease in Impurity(MDI)')
+        model_name = "Random Forest (MDI)"
+    print("Model Name: ",model_name)
+    test_feat=pd.read_csv(image_features)
+    Y = test_feat["Labels"].values
+    X = test_feat[i.feature_names_in_]
+    print("Features used on training: ", i.feature_names_in_)
 
-plt.imsave(f'output/segmented_eye_estimated_{i}{lr}.jpg', segmented, cmap ='jet')
-plt.imsave(f'output/segmented_selected_perm_{i}{lr}.jpg', segmented_selected_perm, cmap='jet')
-plt.imsave(f'output/segmented_selected_sfm_{i}{lr}.jpg', segmented_selected_sfm, cmap='jet')
-plt.imsave(f'output/segmented_selected_mdi_{i}{lr}.jpg', segmented_selected_mdi, cmap='jet')
+    # Prediction
+    pred=i.predict(X)
+
+    # Evaluation
+    accuracy = accuracy_score(Y, pred)
+    print("Accuracy:", accuracy)
+
+    precision = precision_score(Y, pred, pos_label=255)
+    print("Precision:", precision)
+
+    recall = recall_score(Y, pred, pos_label=255)
+    print("Recall:", recall)
+
+    f1 = f1_score(Y, pred, pos_label=255)
+    print("F1-Score:", f1)
+
+    cm = confusion_matrix(Y, pred)
+    print("Confusion Matrix:")
+    print(cm)
+
+    img_bgr = cv2.imread(rgb_image)
+    img_rgb= cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+    pred_image=pred.reshape((960, 999))
+
+    # Plotting
+    fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(12, 4))
+    axes[0].imshow(img_rgb, cmap='gray')
+    axes[0].set_title(f'RGB Image {eye}')
+
+    axes[1].imshow(labeled_img, cmap='gray')
+    axes[1].set_title(f'Mask {eye}')
+
+    axes[2].imshow(pred_image, cmap='gray')
+    axes[2].set_title('Model Prediction')
+
+    fig.suptitle(f'Prediction {model_name}', fontsize=12, fontweight='bold')
+
+    plt.tight_layout()
+    #plt.show()
+    plt.draw()
+    if not os.path.exists('Plots'):
+        os.makedirs('Plots')
+    plt.savefig(f"Plots/prediction_{model_name}_{eye}.png", dpi=300)
+
+# %%

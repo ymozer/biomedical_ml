@@ -48,11 +48,14 @@ for i in range(9):
         elif j == 1:
             lr='R'
 
-        output_image = f"output/Image_0{i+1}{lr}.csv"
-        if os.path.exists(output_image):
-            continue
+        #output_image = f"output/Image_0{i+1}{lr}.csv"
+        #if os.path.exists(output_image):
+        #    continue
+        output_image = f"output/Image_11R.csv"
 
-        img_bgr = cv2.imread(f'Dataset/CHASEDB1/Image_0{i+1}{lr}.jpg')
+
+        #img_bgr = cv2.imread(f'Dataset/CHASEDB1/Image_0{i+1}{lr}.jpg')
+        img_bgr = cv2.imread(f'Dataset/CHASEDB1/Image_11R.jpg')
         img_rgb= cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
         img = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
         print(img.shape)
@@ -79,7 +82,7 @@ for i in range(9):
                         
 #%% Other Filters
         edges = cv2.Canny(img, 100,200)   
-        plot(edges, "Canny Edges")
+        #plot(edges, "Canny Edges")
         edges1 = edges.reshape(-1)
         df['Canny Edge'] = edges1 
         
@@ -137,11 +140,12 @@ for i in range(9):
         #plot(variance_img, "Variance")
 
         # Masking
-        labeled_img = cv2.imread(f'Dataset/CHASEDB1/Image_0{i+1}{lr}_1stHO.png')
+        #labeled_img = cv2.imread(f'Dataset/CHASEDB1/Image_0{i+1}{lr}_1stHO.png')
+        labeled_img = cv2.imread(f'Dataset/CHASEDB1/Image_11R_1stHO.png')
         labeled_img = cv2.cvtColor(labeled_img, cv2.COLOR_BGR2GRAY)
         labeled_img1 = labeled_img.reshape(-1)
-        plot(labeled_img, f"{i}{lr} Labeled Image")
         df['Labels'] = labeled_img1
+        #plot(labeled_img, f"{i}{lr} Labeled Image")
         
         # --- Save features to csv file for each image ----
         # This can provide us to use features that we extracted before to use on training
@@ -151,11 +155,11 @@ for i in range(9):
        
 #%% ----- Select extracted features of an image to use ------ 
 # You can change below 4 variables to use different models and eyes
-eye="04R"
+eye="10R"
 features=f"output/Image_{eye}.csv"
 rgb_image_base_file = f"Dataset/CHASEDB1/Image_{eye}.jpg"
 mask_image = f"Dataset/CHASEDB1/Image_{eye}_1stHO.png"
-model_file = "Models/Random Forest_2L_retrain_perm.sav"
+model_file = "Models/Random_Forest.sav"
 
 img_bgr = cv2.imread(rgb_image_base_file)
 img_rgb= cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
@@ -176,8 +180,8 @@ model = pickle.load(open(model_file, 'rb'))
 
 # Select features that we used on training (can be selected by permutation importance, SelectFromModel or MDI (mean decrease in impurity).
 # Array will be have size of 5 (5 features that we used on training)
-X=X[model.feature_names_in_]
 print("5 Features used on training: ", model.feature_names_in_)
+X=X[model.feature_names_in_]
 
 # Prediction
 pred=model.predict(X)
@@ -220,3 +224,4 @@ plt.tight_layout()
 plt.draw()
 plt.savefig(f"{eye}_{model_file[7:-4]}.png", dpi=300)
 
+# %%
